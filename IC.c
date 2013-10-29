@@ -45,7 +45,7 @@ int main(int argc, char **argv){
     total = 0;
     indice = 0;
     for (j=1; j<=5; j++){
-        rj = 50 + (10*j);
+        rj = 10*j;
         n = 6 * (j+1);
         vj = pow((G/rj),0.5);
         
