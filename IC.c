@@ -26,7 +26,7 @@ int main(int argc, char **argv){
     vyc = atof(argv[4]);
     
     
-    G = 7.2 * pow(10,16);
+    G = 4.4998 * pow(10,-9);
     //printf("Xo = %f \n" , x0);
     //printf("Yo = %f \n", y0);
     //printf("Vxc = %f \n", vxc);
