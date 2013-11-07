@@ -112,7 +112,7 @@ int main(int argc, char **argv){
 	gsl_matrix_free(Mat_inicial);
 	gsl_matrix_free(Mat_siguiente);
 	free(num_CM);
-	return 1;
+	return 0;
 }
 
 /*Conteo de líneas para asignación en memoria*/
