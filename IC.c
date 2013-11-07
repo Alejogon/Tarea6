@@ -15,9 +15,11 @@
 int main(int argc, char **argv){
     int n, j, total, i, indice;
     double x0, y0, vxc, vyc; // Datos de entrada
-    double teta, alpha, rc, rj, xij, yij, vxij, vyij, G, vj;
+    double M, teta, alpha, rc, rj, xij, yij, vxij, vyij, G, vj;
     FILE *output;
     
+
+	M = pow(10,12);
     
     // Toma los parametros de entrada
     x0 = atof(argv[1]);
@@ -47,7 +49,7 @@ int main(int argc, char **argv){
     for (j=1; j<=5; j++){
         rj = 10*j;
         n = 6 * (j+1);
-        vj = pow((G/rj),0.5);
+        vj = pow((G*M/rj),0.5);
         
         //printf("\n\n\n orbita: %d\n", j);
         for(i=0; i<n; i++){
