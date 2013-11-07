@@ -1,462 +1,404 @@
-//
-//  evolve.c
-//  
-//
-//  Created by Alejandro Gonzalez && Camilo Rivera on 26/10/13.
-//
-//
+/*
+ * Este prograba recibe el nombre de un archivo que contiene las posiciones y velocidades iniciales de
+ * estrellas en una galaxia y lo evoluciona a través del tiempo (5 mil millones de años) e imprime
+ * archivos del estado actual de la galaxia cada mil millones de años.
+ * 
+ * Creado por Camilo Rivera.  24/10/13
+ * 
+ * 
+ * 
+ */
 
 #include <stdio.h>
-#include <stdlib.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_eigen.h>
 #include <math.h>
+#include <stdlib.h>
+#include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
+#include <gsl/gsl_cblas.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define M pow(10,12)
+#define G 4.499866*pow(10,-9)
 
 
-#define G 7.2*pow(10,16)
-#define M 1
-#define dt 0.001
-
-//Definir las funciones derivadas
-
-
-//funciones para la evolucion de la masa 1
-double func_primec1_1(t, x,v){
-	return v;
-	}
-double func_primec1x_2(t,x,v,xc1,xc2,yc1,yc2, M2){
-	double teta, r2, a;
-	
-	teta = atan((y2-y1)/(x2-x1));
-	r2 = pow((x2-x1),2) + pow((y2-y1),2);
-
-	a = G*M2/r2*cos(teta);
-	return a;
-	}
-double func_primec1y_2(t,x,v,xc1,xc2,yc1,yc2, M2){
-	double teta, r2, a;
-	teta = atan((y2-y1)/(x2-x1));
-	r2 = pow((x2-x1),2) + pow((y2-y1),2);
-
-	a = G*M2/r2*sin(teta);
-	return a;
-	}
-
-
-//funciones para la evolucion de la masa 2
-double func_primec2_1(t, x,v){
-	return v;
-	}
-double func_primec2x_2(t,x,v, y, xc1,xc2,yc1,yc2, M1){
-	double teta, r2, a;    
- 	teta = atan((y1-y2)/(x1-x2));
- 	r2 = pow((x2-x1),2) + pow((y2-y1),2);
- 	    
- 	a = G*M2/r2*cos(teta);
- 	return a;
-	}
-
-double func_primec2y_2(t,x,v, y, xc1, xc2, yc1, yc2, M1){
-	double teta, r2, a;
- 	teta = atan((y1-y2)/(x1-x2));
- 	r2 = pow((x2-x1),2) + pow((y2-y1),2);
-	a = G*M2/r2*sin(teta);
- 	return a;
-	}
-
-
-
-//funciones para la evolucion de cada punto
-
-double  func_prime_1(t, x, v){
-	return v;
-	}
-
-double func_primex_2(t, xi, v, yi, x1, y1, x2,y2, M1){
-	double teta1, r21, r22, teta2, ax1, ax2;
-
-	teta1 = atan((y1-yi)/(x1-xi));
-	teta2 = atan((y2-yi)/(x2-xi));
-	
-	r21 = pow((x1-xi),2)+pow((y1-yi),2);
-	r22 = pow((x2-xi),2)+pow((y2-yi),2);
-
-	ax1 = G*M1/r21*cos(teta1);
-	ax2 = G*M2/r22*cos(teta2);
-
-	return ax1 + ax2;
-	}
-
-double func_primey_2(t, yi, v, xi, x1, y1, x2,y2, M1){
-	double teta1, r21, r22, teta2, ay1, ay2;
- 
-	teta1 = atan((y1-yi)/(x1-xi));
-	teta2 = atan((y2-yi)/(x2-xi));
-   
-	r21 = pow((x1-xi),2)+pow((y1-yi),2);
-	r22 = pow((x2-xi),2)+pow((y2-yi),2);
-    
-	ay1 = G*M1/r21*sin(teta1);
-	ay2 = G*M2/r22*sin(teta2);
-
-	return ay1 + ay2;
-	}
-
-
-
-
-	
+void leer_archivo(char *nombre,gsl_matrix *destino,int lineas, int *centros);
+int count_lines(char *filename);
+void print_matrixg(gsl_matrix *m, int n_x, int n_y);
+void imprimir_matriz(gsl_matrix *Mat_inicial,int archivos, int filas);
+void runge_4tta(double h,gsl_matrix *actual,gsl_matrix *siguiente,int *centros, int filas);
+float hallar_relat(float dx,float dy,int eje);
 
 int main(int argc, char **argv){
-
-	int i, j, lineas, c, c2, ct;   
-	double tiempo;
-	double x, xc1, yc1, vxc1, vyc1, M1, xc2, yc2, vxc2, vyc2, M2, xi, yi, vxi, vyi, r2; 
-	double xt,vxt,yt,vyt;
-	double k11ix, k11iy, k12ix, k12iy, t1, x1, vx1, y1, vy1, k21ix, k22ix, k21iy, k22iy;
-	double k11c1x, k12c1x, k11c1y, k12c1y, k21c1x, k22c1x, k21c1y, k21c1y;
-	double k31c1x, k32c1x, k31c1y, k32c1y, k41c1c, k42c1x, k42c1y, k42c1y;
-        double k11c2x, k12c2x, k11c2y, k12c2y, k21c2x, k22c2x, k21c2y, k21c2y;
-        double k31c2x, k32c2x, k31c2y, k32c2y, k41c2c, k42c2x, k42c2y, k42c2y;
-
-
-	double t2, x2, vx2, y2, vy2, t3, vy3, k31ix, x3, k32ix, vx3, k32iy, k31iy, y3;
-	double k41ix, k41iy, k42ix, k42iy, kprom1x, kprom1y, kprom2x, kprom2y;
-	char text;
-	int centros[10];
-	//Variables del primer centro de masa
-	double xc1, yc1, vxc1, vyc1, M1;
-	//Variables del segundo centro de masa
-	double xc2, yc2, vxc2, vyc2, M2;
+	/*Se crean índices para las iteraciones del programa 
+	 * variable que almacena el número de estrellas
+	 * número de centros de masa
+	 * Las posiciones de los centros de masa en las matrices
+	 * Un contador de archivos escritos*/
+	int j,i,k,num_est,*num_CM,archivos=1;
+	
+	/*Se crean las matrices donde se guardarán los datos del archivo y las iteraciones*/
+	gsl_matrix *Mat_inicial,*Mat_siguiente;
 	
 	
-    //abrir el archivo de condiciones iniciales
-    
-    ci = fopen(argv[1], "r");
-    if (!ci){
-        printf("problemas al abrir el archivo:  %s\n", argv[1]);
-        exit(1);
+	/*Se define el paso para las iteraciones temporales
+	 * el contador para dichas iteraciones (tiempo)*/
+	double paso=0.001,tiempo=0;
+	
+	/*Se definen variables de utilidad para las iteraciones
+	 * (Aceleración en X y Y, distancias en X y Y, ...)*/
+	 double a_x,a_y;
+	 
+	 
+	/*Comprobación de argumentos*/
+	if(argc!=2){
+	printf("Se debe especificar el nombre del archivo donde se encuentran las condiciones iniciales\n");
+	exit(1);
 	}
-    else {
-        printf("el archivo se abrio exitosamente\n");
-	}
-    
-	//Contador de lineas
-	rewind(ci);
-	lineas = 0;
-	while((text = fgetc(ci)) != EOF){
-		if(text == '\n'){
-			lineas ++;
-			}
-		}
-
-	printf("el numero total de lineas es %d \n", lineas);
-
-	//abrir los archivos de salida
-	out1 = fopen("mil_millones.dat","w");
-	out2 = fopen("dosmil_millones.dat","w");
-	out3 = fopen("tresmil_millones.dat","w");
-	out4 = fopen("cuatromil_millones.dat","w");
-	out5 = fopen("cincomil_millones.dat","w");
-
-
-
-    	// Declarar la matriz de condiciones iniciales
-    
 	
-
-    	gsl_matrix * condiciones_iniciales = gsl_matrix_alloc(lineas,5);
-    
-    	// Llena la matriz con los datos del archivo
-    
-    	rewind(ci);
-	gsl_matrix_fscanf ( ci, condiciones_iniciales);
-    
-
-	// Inicializamos los datos de los centros de masa
-
-	xc1 = yc1 = vxc1 = vyc1 = M1 = xc2 = yc2 = vxc2 = vyc2 = M2 = 0;
-
-	//recorremos la matriz para determinar los datos de los centros de masa recibidos como parametro en el archivo
-	c = 0;
-	for(i=0; i<lineas; i++){
-		if ( gsl_matrix_get(condiciones_iniciales, i, 0) == -1){
-			
-			centros[c] = i;	
-			c++;
-			}
-		}
-	M1 = M; 
- 	xc1 = gsl_matrix_get(condiciones_iniciales, 0, 1);
-        yc1 = gsl_matrix_get(condiciones_iniciales, 0, 2); 
-	vxc1 = gsl_matrix_get(condiciones_iniciales, 0, 3);
-	vyc1 = gsl_matrix_get(condiciones_iniciales, 0, 4);
+	///////*Alocación de memoria*//////////
 	
-	if( c ==  2){
-		M2 = M;
-		xc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 1);
-		yc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 2);
-		vxc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 3);
-		vyc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 4);
-
+	//Primer se realiza el conteo de lineas para la alocación de memoria
+	num_est=count_lines(argv[1]);
+	//printf("%d\n",num_est);
+	num_CM=malloc(sizeof(int)*2);
+	/*Se inicializan las posiciones de las estrellas
+	 * Es importante tener en cuenta de ahora en adelante que si hay una única
+	 * galaxia, sólo se escribirá la primera entrada y la otra permanecerá en -1
+	 * mientras que si hay dos galaxias se escribirán ambas entradas.*/
+	num_CM[0]=-1;
+	num_CM[1]=-1;
+	
+	Mat_inicial = gsl_matrix_alloc (num_est, 5);
+	Mat_siguiente = gsl_matrix_alloc (num_est, 5);
+	
+	/*Se procede a la lectura del archivo y escritura de la matriz inicial*/
+	leer_archivo(argv[1],Mat_inicial,num_est,num_CM);
+	
+	//print_matrixg(Mat_inicial,num_est,5);
+	/*Se procede a iterar el método de Runge-Kutta y cada vez que pasen Mil millones
+	 * de años se exporta un archivo. Al final del ciclo se exporta un último archivo*/
+	gsl_matrix_set_zero (Mat_siguiente);
+	for(tiempo=0;tiempo<5u;tiempo+=paso){
+		runge_4tta(paso,Mat_inicial,Mat_siguiente,num_CM,num_est);
+		if(tiempo>1u && archivos==1){
+			imprimir_matriz(Mat_inicial,archivos,num_est);
+			archivos++;
 		}
-
-	for(i=0; i<= lineas; i++){
-		M1 = M;
-		xc1 = gsl_matrix_get(condiciones_iniciales, 0, 1);
-		yc1 = gsl_matrix_get(condiciones_iniciales, 0, 2);
-		vxc1 = gsl_matrix_get(condiciones_iniciales, 0, 3);
-		yc1 = gsl_matrix_get(condiciones_iniciales, 0, 4);
-		if( c ==  2){
-			M2 = M;
-			xc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 1);
-			yc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 2);
-			vxc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 3);
-			vyc2 = gsl_matrix_get(condiciones_iniciales, centros[1], 4);
-			}
-		ct = 0;
-		for(tiempo = 0; tiempo <= 5; tiempo+=dt){
-			ct ++;
-			//evolucion de los centros de masa
-			//centro 1
-			k11c1x = func_primec1_1(tiempo, xc1, vxc1);
-			k12c1x = func_primec1x_2(tiempo, xc1, vxc1, xc1, xc2, yc1, yc2, M2);
-			k11c1y = func_primec1_1(tiempo, yc1, vyc1);
-			k12c1y = func_primec1y_2(tiempo, yc1, vyc1, xc1, xc2, yc1, yc2, M2);
-			//primer paso
-			t1 = tiempo + (dt/2.0);
-			x1 = xc1 + (dt/2.0)*k11c1x;
-			vx1 = vxc1 + (dt/2.0)*k12c1x;
-			k21c1x = func_primec1_1(t1, x1, vx1);
-			k22c1x = func_primec1x_2(t1, x1, vx1,  xc1, xc2, yc1, yc2, M2);
-
-			y1 = yc1 + (dt/2.0)*k11c1y;
-			vy1 = vyc1 + (dt/2.0)*k12c1y;
-			k21c1y = func_primec1_1(t1, y1, vy1);
-			k22c1y = func_primec1y_2(t1, y1, vy1,  xc1, xc2, yc1, yc2, M2);
-			//segundo paso
-			t2 = tiempo + (dt/2.0);
-			x2 = xc1 + (dt/2.0)*k21c1x;
-			vx2 = vxc1 + (dt/2.0)*k22c1x;
-			k31c1x = func_primec1_1(t2, x2, vx2);
-			k32c1x = func_primec1x_2(t2, x2, vx2,  xc1, xc2, yc1, yc2, M2);
-
-			y2 = yc1 +(dt/2.0)*k21c1y;
-			vy2 = vyc1 + (dt/2.0)*k22c1y;
-			k31c1y = func_primec1_1(t2, y2, vy2);
-			k32c1y = func_primec1y_2(t2, y2, vy2,  xc1, xc2, yc1, yc2, M2);
-
-			//tercer paso
-			t3 = tiempo + dt;
-			x3 = xc1 + dt*k31c1x;
-			vx3 = vxc1 + dt*k32c1x;
-			k41c1x = func_primec1_1(t3, x3, vx3);
-			k42c1x = func_primec1x_2(t3, x3, vx3,  xc1, xc2, yc1, yc2, M2);
-
-			y3 = yc1 + dt*k31c1y;
-			vy3 = vyc1 + dt*k32c1y;
-			k41c1y = func_primec1_1(t3, y3, vy3);
-			k42c1y = func_primec1y_2(t3, y3, vy3,  xc1, xc2, yc1, yc2, M2);
-
-			//cuarto paso
-			kprom1x = (1.0/1.6)*(k11c1x + 2.0*k21c1x + 2.0*k31c1x + k41c1x);
-			kprom2x = (1.0/1.6)*(k12c1x + 2.0*k22c1x + 2.0*k32c1x + k42c1x);
-			kprom1y = (1.0/1.6)*(k11c1y + 2.0*k21c1y + 2.0*k31c1y + k41c1y); 
-			kprom2y = (1.0/1.6)*(k12c1y + 2.0*k22c1y + 2.0*k32c1y + k42c1y);
-			
-			xc1 = xc1 + dt*kprom1x;
-			vxc1 = vxc1 + dt*kprom2x;
-
-			yc1 = yc1 + dt*kprom1y;
-			vyc1 = vyc1 + dt*kprom2y;
-
-			//centro 2
-
-			k11c2x = func_primec2_1(tiempo, xc2, vxc2);
-			k12c2x = func_primec2x_2(tiempo, xc2, vxc2,  xc1, xc2, yc1, yc2, M2);
-			k11c2y = func_primec2_1(tiempo, yc2, vyc2);
-			k12c2y = func_primec2y_2(tiempo, yc2, vyc2,  xc1, xc2, yc1, yc2, M2);
-			//primer paso
-			t1 = tiempo + (dt/2.0);
-			x1 = xc2 + (dt/2.0)*k11c2x;
-			vx1 = vxc2 + (dt/2.0)*k12c2x;
-			k21c2x = func_primec2_1(t1, x1, vx1);
-			k22c2x = func_primec2x_2(t1, x1, vx1,  xc1, xc2, yc1, yc2, M2);
-
-			y1 = yc2 + (dt/2.0)*k11c2y;
-			vy1 = vyc2 + (dt/2.0)*k12c2y;
-			k21c2y = func_primec2_1(t1, y1, vy1);
-			k22c2y = func_primec2y_2(t1, y1, vy1,  xc1, xc2, yc1, yc2, M2);
-			
-			//segundo paso
-			t2 = tiempo + (dt/2.0);
-			x2 = xc2 + (dt/2.0)*k21c2x;
-			vx2 = vxc2 + (dt/2.0)*k22c2x;
-			k31c2x = func_primec2_1(t2, x2, vx2);
-			k32c2x = func_primec2x_2(t2, x2, vx2,  xc1, xc2, yc1, yc2, M2);
-
-			y2 = yc2 +(dt/2.0)*k21c2y;
-			vy2 = vyc2 + (dt/2.0)*k22c2y;
-			k31c2y = func_primec2_1(t2, y2, vy2);
-			k32c2y = func_primec2y_2(t2, y2, vy2,  xc1, xc2, yc1, yc2, M2);
-
-                        //tercer paso
-			t3 = tiempo + dt;
-			x3 = xc2 + dt*k31c2x;
-			vx3 = vxc2 + dt*k32c2x;
-			k41c2x = func_primec2_1(t3, x3, vx3);
-			k42c2x = func_primec2x_2(t3, x3, vx3, xc1, xc2, yc1, yc2, M2);
-
-			y3 = yc2 + dt*k31c2y;
-			vy3 = vyc2 + dt*k32c2y;
-			k41c2y = func_primec2_1(t3, y3, vy3);
-			k42c2y = func_primec2y_2(t3, y3, vy3,  xc1, xc2, yc1, yc2, M2);
-			//cuarto paso
-			kprom1x = (1.0/1.6)*(k11c2x + 2.0*k21c2x + 2.0*k31c2x + k41c2x);
-			kprom2x = (1.0/1.6)*(k12c2x + 2.0*k22c2x + 2.0*k32c2x + k42c2x);
-			kprom1y = (1.0/1.6)*(k11c2y + 2.0*k21c2y + 2.0*k31c2y + k41c2y);
-			kprom2y = (1.0/1.6)*(k12c2y + 2.0*k22c2y + 2.0*k32c2y + k42c2y);
-
-			xc2 = xc2 + dt*kprom1x;
-			vxc2 = vxc2 + dt*kprom2x;
-
-			yc2 = yc2 + dt*kprom1y;
-			vyc2 = vyc2 + dt*kprom2y;
-
-			//evolucion del punto i
-			xi = gsl_matrix_get(condiciones_iniciales, i, 1);
-			xi = gsl_matrix_get(condiciones_iniciales, i, 1);
-			yi = gsl_matrix_get(condiciones_iniciales, i, 2);
-			vxi = gsl_matrix_get(condiciones_iniciales, i, 3);
-			vyi = gsl_matrix_get(condiciones_iniciales, i, 4);
-
-			k11ix = func_prime_1(tiempo, xi, vxi);
-			k12ix = func_primex_2(tiempo, xi, vxi, yi, xc1, xc2, yc1, yc2, M1);
-			k11iy = func_prime_1(tiempo, yc2, vyc2);
-			k12iy = func_primey_2(tiempo, xi, vxi, yi, xc1, xc2, yc1, yc2, M1);
-			//primer paso
-			t1 = tiempo + (dt/2.0);
-			x1 = xi + (dt/2.0)*k11ix;
-			vx1 = vxi + (dt/2.0)*k12ix;
-
-			y1 = yi + (dt/2.0)*k11iy;
-			vy1 = vyi + (dt/2.0)*k12iy;
-
-			k21ix = func_prime_1(t1, x1, vx1);
-			k22ix = func_primex_2(t1, x1, vx1, y1, xc1, xc2, yc1, yc2, M1);
- 
-			k21iy = func_prime_1(t1, x1, vx1);
-			k22iy = func_primey_2(t1, y1, vy1, x1, xc1, xc2, yc1, yc2, M1);
-
-			//segundo paso
-			t2 = tiempo + (dt/2.0);
-			x2 = xi + (dt/2.0)*k21ix;
-			vx2 = vxi + (dt/2.0)*k22ix;
-			y2 = yi +(dt/2.0)*k21iy;
-			vy2 = vyi + (dt/2.0)*k22iy;
-
-
-			k31ix = func_prime_1(t2, x2, vx2);
-			k32ix = func_primex_2(t2, x2, vx2, y2, xc1, xc2, yc1, yc2, M1);
-
-			
-			k31iy = func_prime_1(t2, y2, vy2);
-			k32iy = func_primey_2(t2, y2, vy2, x2, xc1, xc2, yc1, yc2, M1);
-
-			//tercer paso
-			t3 = tiempo + dt;
-			x3 = xc2 + dt*k31ix;
-			vx3 = vxi + dt*k32ix;
-			k41ix = func_prime_1(t3, x3, vx3);
-			k42ix = func_primex_2(t3, x3, vx3);
- 
-			y3 = yi + dt*k31iy;
-			vy3 = vyi + dt*k32iy;
-			k41iy = func_prime_1(t3, y3, vy3);
-			k42iy = func_primey_2(t3, y3, vy3);
-			//cuarto paso
-			kprom1x = (1.0/1.6)*(k11ix + 2.0*k21ix + 2.0*k31ix + k41ix);
-			kprom2x = (1.0/1.6)*(k12ix + 2.0*k22ix + 2.0*k32ix + k42ix);
-			kprom1y = (1.0/1.6)*(k11iy + 2.0*k21iy + 2.0*k31iy + k41iy);
-			kprom2y = (1.0/1.6)*(k12iy + 2.0*k22iy + 2.0*k32iy + k42iy);
-
-			xi = xi + dt*kprom1x;
-			vxi = vxi + dt*kprom2x;
-
-			yi = yi + dt*kprom1y;
-			vyi = vyi + dt*kprom2y;
-			
-			//imprimir las evolucion en los archivos correspondientes si se cumple el tiempo requerido
-			// mil millones de años	
-			//imprimir la evolucion del centro 1 
-			if(ct == 1000 && i=centros[0]){
-				fprintf(out1, "%d %lf %lf %lf %lf\n",-1 ,xc1,yc1,vxc1,vyc1);
-
-				}
-			//imprimir la evolucion del centro 2
-			if(ct == 1000 && i=centros[1] 
-				fprintf(out1, "%d %lf %lf %lf %lf\n",-1 ,xc2,yc2,vxc2,vyc2);
-				}
-			//imprimir la evolucion del punto i
-			if(ct == 1000 && i!=centros[0] && i!=centros[1]){
-				fprintf(out1, "%d %lf %lf %lf %lf\n", i,xi,yi,vxi,vyi);
-				}
-
-			//dos mil millones de años
-			if(ct == 2000 && i=centros[0]){
-				fprintf(out2, "%d %lf %lf %lf %lf\n",-1 ,xc1,yc1,vxc1,vyc1);
-				}
-			//imprimir la evolucion del centro 2
-			if(ct == 2000 && i=centros[1]
-				fprintf(out2, "%d %lf %lf %lf %lf\n",-1 ,xc2,yc2,vxc2,vyc2);
-				}
-			//imprimir la evolucion del punto i
-			if(ct == 2000 && i!=centros[0] && i!=centros[1]){
-				fprintf(out2, "%d %lf %lf %lf %lf\n", i,xi,yi,vxi,vyi);
-				}
-
-			//tres mil millones
-
-                        if(ct == 3000 && i=centros[0]){
-                                fprintf(out3, "%d %lf %lf %lf %lf\n",-1 ,xc1,yc1,vxc1,vyc1);
-                                }   
-                        //imprimir la evolucion del centro 2
-                        if(ct == 3000 && i=centros[1]
-                                fprintf(out3, "%d %lf %lf %lf %lf\n",-1 ,xc2,yc2,vxc2,vyc2);
-                                }   
-                        //imprimir la evolucion del punto i
-                        if(ct == 3000 && i!=centros[0] && i!=centros[1]){
-                                fprintf(out3, "%d %lf %lf %lf %lf\n", i,xi,yi,vxi,vyi);
-                                }   
-
-
-                        //cuatro mil millones de años
-                        if(ct == 4000 && i=centros[0]){
-                                fprintf(out4, "%d %lf %lf %lf %lf\n",-1 ,xc1,yc1,vxc1,vyc1);
-                                }   
-                        //imprimir la evolucion del centro 2
-                        if(ct == 4000 && i=centros[1]
-                                fprintf(out4, "%d %lf %lf %lf %lf\n",-1 ,xc2,yc2,vxc2,vyc2);
-                                }   
-                        //imprimir la evolucion del punto i
-                        if(ct == 4000 && i!=centros[0] && i!=centros[1]){
-                                fprintf(out4, "%d %lf %lf %lf %lf\n", i,xi,yi,vxi,vyi);
-                                }   
-
-                        //cinco mil millones de años
-                        if(ct == 5000 && i=centros[0]){
-                                fprintf(out5, "%d %lf %lf %lf %lf\n",-1 ,xc1,yc1,vxc1,vyc1);
-                                }   
-                        //imprimir la evolucion del centro 2
-                        if(ct == 5000 && i=centros[1]
-                                fprintf(out5, "%d %lf %lf %lf %lf\n",-1 ,xc2,yc2,vxc2,vyc2);
-                                }   
-                        //imprimir la evolucion del punto i
-                        if(ct == 5000 && i!=centros[0] && i!=centros[1]){
-                                fprintf(out5, "%d %lf %lf %lf %lf\n", i,xi,yi,vxi,vyi);
-                                }   
-
-
-			}
+		if(tiempo>2u && archivos==2){
+			imprimir_matriz(Mat_inicial,archivos,num_est);
+			archivos++;
 		}
-
+		if(tiempo>3u && archivos==3){
+			imprimir_matriz(Mat_inicial,archivos,num_est);
+			archivos++;
+		}
+		if(tiempo>4u && archivos==4){
+			imprimir_matriz(Mat_inicial,archivos,num_est);
+			archivos++;
+		}
 	}
+	imprimir_matriz(Mat_inicial,archivos,num_est);
+	
+	printf("%d %d \n",num_CM[0],num_CM[1]);
+
+	//////Liberación de espacio alocado///////
+	gsl_matrix_free(Mat_inicial);
+	gsl_matrix_free(Mat_siguiente);
+	free(num_CM);
+	return 1;
+}
+
+/*Conteo de líneas para asignación en memoria*/
+int count_lines(char *filename){
+	
+  FILE *in;
+  int n_lines;
+  int c;
+  if(!(in=fopen(filename, "r"))){
+    printf("problem opening file %s\n", filename);
+    exit(1);
+  }
+
+  n_lines = 0;
+  do{
+    c = fgetc(in);
+    if(c=='\n'){
+      n_lines++;
+    }
+  }while(c!=EOF);
+  
+  fclose(in);
+  return n_lines;
+}
+
+/*Función que realiza la escritura del archivo en una matriz GSL y devuelve el número de CM*/
+void leer_archivo(char *nombre,gsl_matrix *destino,int lineas,int *centros){
+	
+	FILE *in;
+	int i,j, cont=0;
+	float *aux;
+	if(!(aux = malloc(sizeof(float)*lineas*5))){
+		fprintf(stderr, "Problem with memory allocation");
+		exit(1);		
+	}
+	in = fopen(nombre,"r"); 
+	if(!in){
+		printf("Hubo un problema abriendo el archivo %s\n", nombre);
+		exit(1);
+	}
+	/*Se escriben los datos del archivo en la matriz auxiliar*/ 
+	for(i=0;i<lineas;i++){
+		fscanf(in, "%f %f %f %f %f \n", &aux[i*5], &aux[i*5+1],&aux[i*5+2],&aux[i*5+3],&aux[i*5+4]); 
+	}
+	fclose(in);
+	
+	/*Se escriben los archivos de la matrix auxiliar en la matriz GSL*/
+	for(i=0;i<lineas;i++){
+		for(j=0;j<5;j++){
+			gsl_matrix_set (destino,i,j, (double)aux[5*i+j]);
+		}
+		if(aux[5*i]<0){
+			centros[cont]=i;
+			cont++;
+		}
+	}
+	
+	free(aux);
+}
+
+/*Método auxiliar para imprimir matrices GSL*/
+void print_matrixg(gsl_matrix *m, int n_x, int n_y){
+	
+	int i,j;
+	fprintf(stdout, "\n");
+	/*Prints to screen*/
+	for(i=0;i<n_x;i++){
+		for(j=0;j<n_y;j++){
+			fprintf(stdout, " %f ",gsl_matrix_get(m, i, j));
+		}
+		fprintf(stdout, "\n");
+	}
+	fprintf(stdout, "\n");
+
+}
+
+/*Función que exporta los archivos de una matriz GSL*/
+void imprimir_matriz(gsl_matrix *Mat_inicial,int archivos, int filas){
+	/*Se define el nombre base de los archivos que se van a exportar*/
+	 FILE *in1;
+	 int i,j;
+	 char *nombre, *result, *num;
+	 result=malloc(sizeof(char)*50);
+	 nombre=malloc(sizeof(char)*50);
+	 num=malloc(sizeof(char)*50);
+	 nombre="Estado de galaxia_";
+	 sprintf(num, "%d", archivos);
+	 strcpy(result, nombre);
+	 strcat(result, num);
+	 in1 = fopen(result,"w"); 
+	/*A continuación se recorre la matriz GSL y se imprimen sus valores en el archivo
+	 * con nombre "Estado de galaxia"+archivos*/
+	 for(i=0;i<filas;i++){
+		for(j=0;j<5;j++){
+			fprintf(in1, "%f ",gsl_matrix_get(Mat_inicial, i, j));
+		}
+		fprintf(in1, "\n");
+	}
+	fprintf(in1, "\n");
+	fclose(in1);
+	free(result);
+	 
+}
+
+/*Función que halla aceleraciones dadas unas distancias relativas. Si recibe
+ * un 0 en el último parámetro devuelve la aceleración en x
+ * Si recibe un 1, devuelve la aceleración en el eje y*/
+float hallar_relat(float dx,float dy,int eje){
+	//Valores relativos de los puntos a considerar fuerzas
+	float radio2,cos_theta, sin_theta, at, ax, ay;
+	
+	radio2=pow(dx,2)+pow(dy,2);
+	cos_theta=dx/sqrt(radio2);
+	sin_theta=dy/sqrt(radio2);
+	at=-G*M/radio2;
+	ax=at*cos_theta;
+	ay=at*sin_theta;
+	
+	if(eje==0){
+		return ax;
+	}
+	else{
+		return ay;
+	}
+		
+}
+
+/*Función que realiza una iteración de Runge-kutta de 4 orden*/
+void runge_4tta(double h,gsl_matrix *actual,gsl_matrix *siguiente,int *centros, int filas){
+	int i,j,k;
+	//Valores para uso en la iteración de runge-kutta
+	float ax,ay;
+	//Valores relativos de los puntos a considerar fuerzas
+	float delta_x, delta_y;
+	//Variables auxiliares para la iteracipon
+	float vx,vy,xaux,yaux;
+	//Variables al inicio del intervalo
+	float vox,voy,xo,yo;
+	
+	/*Parámetros de Runge-Kutta. Parámetros con K corresponden a posición y Parámetros con L a velocidad
+	 * El los vectores tiene 5 posiciones, las 4 primeras corresponden a los 4 valores de runge-kutta
+	 * mientras que la última corresponde al total*/
+	float *kx,*ky,*lx,*ly;
+	
+	/*Esta función realiza una iteración sobre toda la matriz, realizando el cálculo
+	 * sobre "siguiente" y luego copiando todos los datos sobre actual.
+	 * Se tienen los índices de los centros para revisar con facilidad
+	 * las distancias y las fuerzas.
+	 * h es el paso temporal que se va a realizar. 
+	 * Se deben realizar dos Runge-kutta para cada fila de la matriz por lo cual se itera
+	 * sobre las filas, evitando aquellas que están dentro de los índices de *centros.
+	 * Si en *centros uno de los índices es negativo, es porque sólo hay un CM; una galaxia.
+	*/
+	
+	//Se realiza la alocación de memoria para los vectores
+	kx=malloc(sizeof(float)*5);
+	ky=malloc(sizeof(float)*5);
+	lx=malloc(sizeof(float)*5);
+	ly=malloc(sizeof(float)*5);
+	
+	//Se recorren todos las filas de la matriz
+	for(i=0;i<filas;i++){
+		
+		
+		ax=0;
+		ay=0;
+		/*El siguiente loop es para hallar la aceleración total que siente la masa actual al ir directamente 
+		 * a los índices de los centros de masa*/
+		for(j=0;j<2;j++){
+			//Se verifica que el centro de masa actual exista y que no sea el índice de la masa actual
+			if(centros[j]!=-1 && centros[j]!=i){
+				//Se hallan las variables relativas a dicho punto
+				delta_x=gsl_matrix_get(actual,centros[j],1)-gsl_matrix_get(actual,i,1);
+				delta_y=gsl_matrix_get(actual,centros[j],2)-gsl_matrix_get(actual,i,2);
+				ax+=hallar_relat(delta_x,delta_y,0);
+				ay+=hallar_relat(delta_x,delta_y,1);
+			}
+		}
+		
+		vox=gsl_matrix_get(actual,i,3);
+		voy=gsl_matrix_get(actual,i,4);
+		xo=gsl_matrix_get(actual,i,1);
+		yo=gsl_matrix_get(actual,i,2);
+		
+		xaux=xo;
+		yaux=yo;
+		vx=vox;
+		vy=voy;
+		
+		//Método de Runge-Kutta
+		
+		//K1
+		kx[0]=vx*h;
+		ky[0]=vy*h;
+		lx[0]=ax*h;
+		ly[0]=ay*h;
+		
+		//Primer paso
+		xaux=xo+0.5*kx[0];
+		yaux=yo+0.5*ky[0];
+		vx=vox+0.5*lx[0];
+		vy=voy+0.5*lx[0];
+		ax=0;
+		ay=0;
+		for(j=0;j<2;j++){
+			if(centros[j]!=-1 && centros[j]!=i){
+				delta_x=gsl_matrix_get(actual,centros[j],1)-xaux;
+				delta_y=gsl_matrix_get(actual,centros[j],2)-yaux;
+				ax+=hallar_relat(delta_x,delta_y,0);
+				ay+=hallar_relat(delta_x,delta_y,1);
+			}
+		}
+		
+		//K2
+		kx[1]=vx*h;
+		ky[1]=vy*h;
+		lx[1]=ax*h;
+		ly[1]=ay*h;
+		
+		//Segundo Paso
+		xaux=xo+0.5*kx[1];
+		yaux=yo+0.5*ky[1];
+		vx=vox+0.5*lx[1];
+		vy=voy+0.5*lx[1];
+		ax=0;
+		ay=0;
+		for(j=0;j<2;j++){
+			if(centros[j]!=-1 && centros[j]!=i){
+				delta_x=gsl_matrix_get(actual,centros[j],1)-xaux;
+				delta_y=gsl_matrix_get(actual,centros[j],2)-yaux;
+				ax+=hallar_relat(delta_x,delta_y,0);
+				ay+=hallar_relat(delta_x,delta_y,1);
+			}
+		}
+		
+		//K3
+		kx[2]=vx*h;
+		ky[2]=vy*h;
+		lx[2]=ax*h;
+		ly[2]=ay*h;
+		
+		//Tercer Paso
+		xaux=xo+kx[2];
+		yaux=yo+ky[2];
+		vx=vox+lx[2];
+		vy=voy+lx[2];
+		ax=0;
+		ay=0;
+		for(j=0;j<2;j++){
+			if(centros[j]!=-1 && centros[j]!=i){
+				delta_x=gsl_matrix_get(actual,centros[j],1)-xaux;
+				delta_y=gsl_matrix_get(actual,centros[j],2)-yaux;
+				ax+=hallar_relat(delta_x,delta_y,0);
+				ay+=hallar_relat(delta_x,delta_y,1);
+			}
+		}
+		
+		//K4
+		kx[3]=vx*h;
+		ky[3]=vy*h;
+		lx[3]=ax*h;
+		ly[3]=ay*h;
+		
+		//K
+		kx[4]=(kx[0]+2*kx[1]+2*kx[2]+kx[3])/6;
+		ky[4]=(ky[0]+2*ky[1]+2*ky[2]+ky[3])/6;
+		lx[4]=(lx[0]+2*lx[1]+2*lx[2]+lx[3])/6;
+		ly[4]=(ly[0]+2*ly[1]+2*ly[2]+ly[3])/6;
+		
+		//Cuarto Paso
+		xaux=xo+kx[4];
+		yaux=yo+ky[4];
+		vx=vox+lx[4];
+		vy=voy+lx[4];
+		
+		gsl_matrix_set (siguiente,i,1,xaux);
+		gsl_matrix_set (siguiente,i,2,yaux);
+		gsl_matrix_set (siguiente,i,3,vx);
+		gsl_matrix_set (siguiente,i,4,vy);	
+		gsl_matrix_set(siguiente,i,0,gsl_matrix_get(actual,i,0));
+	}
+	
+	/*Una vez se terminan de escribir los datos del nuevo instante de tiempo
+	 * de la matriz siguiente, se copia la información en la matriz actual*/
+	gsl_matrix_memcpy (actual, siguiente);
+	gsl_matrix_set_zero (siguiente);
+	
+	free(kx);
+	free(ky);
+	free(lx);
+	free(ly);
+	
+}
