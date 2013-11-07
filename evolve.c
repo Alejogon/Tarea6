@@ -21,7 +21,7 @@
 #include <stdlib.h>
 
 #define M pow(10,12)
-#define G 4.49944*pow(10,-6)
+#define G 4.302*pow(10,-6)
 
 
 void leer_archivo(char *nombre,gsl_matrix *destino,int lineas, int *centros);
@@ -45,7 +45,7 @@ int main(int argc, char **argv){
 	
 	/*Se define el paso para las iteraciones temporales
 	 * el contador para dichas iteraciones (tiempo)*/
-	double paso=0.000000001,tiempo=0;
+	double paso=0.0001,tiempo=0;
 	
 	/*Se definen variables de utilidad para las iteraciones
 	 * (Aceleración en X y Y, distancias en X y Y, ...)*/
@@ -227,7 +227,7 @@ float hallar_relat(float dx,float dy,int eje){
 	radio2=pow(dx,2)+pow(dy,2);
 	cos_theta=dx/sqrt(radio2);
 	sin_theta=dy/sqrt(radio2);
-	at=-G*M/radio2;
+	at=(float)-1*G*M/radio2;
 	ax=at*cos_theta;
 	ay=at*sin_theta;
 	
@@ -285,8 +285,8 @@ void runge_4tta(double h,gsl_matrix *actual,gsl_matrix *siguiente,int *centros, 
 			//Se verifica que el centro de masa actual exista y que no sea el índice de la masa actual
 			if(centros[j]!=-1 && centros[j]!=i){
 				//Se hallan las variables relativas a dicho punto
-				delta_x=gsl_matrix_get(actual,centros[j],1)-gsl_matrix_get(actual,i,1);
-				delta_y=gsl_matrix_get(actual,centros[j],2)-gsl_matrix_get(actual,i,2);
+				delta_x=(float)gsl_matrix_get(actual,centros[j],1)-gsl_matrix_get(actual,i,1);
+				delta_y=(float)gsl_matrix_get(actual,centros[j],2)-gsl_matrix_get(actual,i,2);
 				ax+=hallar_relat(delta_x,delta_y,0);
 				ay+=hallar_relat(delta_x,delta_y,1);
 			}
@@ -406,3 +406,4 @@ void runge_4tta(double h,gsl_matrix *actual,gsl_matrix *siguiente,int *centros, 
 	free(ly);
 	
 }
+
