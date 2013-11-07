@@ -13,10 +13,10 @@
 #define pi 3.14159
 
 int main(int argc, char **argv){
-    int n, j, total, i, indice;
-    double x0, y0, vxc, vyc; // Datos de entrada
-    double M, teta, alpha, rc, rj, xij, yij, vxij, vyij, G, vj;
-    FILE *output;
+    	int n, j, total, i, indice;
+    	double x0, y0, vxc, vyc; // Datos de entrada
+    	double M, teta, alpha, rc, rj, xij, yij, vxij, vyij, G, vj;
+    	FILE *output;
     
 
 	M = pow(10,12);
@@ -28,7 +28,7 @@ int main(int argc, char **argv){
     vyc = atof(argv[4]);
     
     
-    G = 4.4998 * pow(10,-9);
+    G = 4.4998 * pow(10,-6);
     //printf("Xo = %f \n" , x0);
     //printf("Yo = %f \n", y0);
     //printf("Vxc = %f \n", vxc);
