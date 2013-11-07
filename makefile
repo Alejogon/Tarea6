@@ -8,4 +8,8 @@ IC.x : IC.c
 	python plots.py ci2.txt
 	cc evolve.c -lm -lgsl -lgslcblas -o evolve.x
 	./evolve.x ci2.txt
-	python plots.py Estado de galaxia_1 Estado de galaxia_2 Estado de galaxia_3 Estado de galaxia_4 Estado de galaxia_5
+	python plots.py Estado de galaxia_1 
+	python plots.py Estado de galaxia_2 
+	python plots.py Estado de galaxia_3 
+	python plots.py Estado de galaxia_4 
+	python plots.py Estado de galaxia_5
